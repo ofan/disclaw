@@ -1,0 +1,71 @@
+# Disclaw configuration — manages Discord workspace structure + OpenClaw routing as code.
+#
+# Usage:
+#   disclaw diff                                     # show full diff (read-only)
+#   disclaw apply --yes                              # push config to Discord
+#   disclaw import --yes                             # pull Discord into config
+#   disclaw rollback --yes                           # restore from snapshot
+#
+# Config is loaded from ~/.config/disclaw/disclaw.yaml by default.
+# Override with --dir <path> or -c <path>:
+#   disclaw diff --dir /path/to/project              # custom base dir
+#   disclaw diff -c disclaw.yaml                     # explicit config path
+#   DISCLAW_DIR=/path/to/project disclaw diff        # env var
+#
+# Filtering:
+#   disclaw diff -f channel,thread                   # only channels and threads
+#   disclaw apply -f binding -y                      # only bindings
+#   disclaw diff -j                                  # flat JSON output
+
+version: 1
+managedBy: disclaw
+guild: "YOUR_GUILD_ID"
+
+channels:
+  # --- Standalone channels (no category) ---
+  - name: general
+
+  - name: announcements
+    topic: "Important updates only."
+
+  # --- Category groups ---
+  - category: Engineering
+    channels:
+      - name: backend
+        topic: "API and services"
+        threads: [Auth, Database, Performance]
+      - name: frontend
+        topic: "UI and client work"
+      - name: infra
+        topic: "Infrastructure and DevOps"
+        threads: [K8s, Monitoring]
+
+  - category: Community
+    channels:
+      - name: introductions
+      - name: off-topic
+        topic: "Anything goes."
+        restricted: true               # maps to Discord's NSFW/age-restricted flag
+
+# OpenClaw agent bindings — agents can bind to one or many channels.
+# Disclaw automatically manages Discord routing gates (channel allowlist +
+# requireMention) so the bot can respond in bound channels.
+openclaw:
+  requireMention: false          # guild-level default (optional)
+  agents:
+    # Single channel binding (string shorthand — inherits guild default)
+    alerts: infra
+
+    # Multiple channel bindings (array shorthand)
+    main: [general, backend, frontend]
+
+    # Object form — same requireMention for all channels
+    community-bot:
+      channel: introductions
+      requireMention: true
+
+    # Mixed array — per-channel requireMention
+    support-bot:
+      - general                      # inherits guild default (false)
+      - channel: off-topic
+        requireMention: true         # override for this channel

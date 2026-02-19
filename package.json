@@ -1,0 +1,44 @@
+{
+  "name": "@ofan/disclaw",
+  "version": "0.1.0",
+  "description": "DiscordOps + OpenClaw integration — manage Discord structure as code",
+  "type": "module",
+  "bin": {
+    "disclaw": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "sh scripts/gen-version.sh && tsc",
+    "dev": "tsc --watch",
+    "test": "node --test --experimental-strip-types src/*.test.ts src/**/*.test.ts",
+    "disclaw": "FORCE_COLOR=1 node --experimental-strip-types src/cli.ts",
+    "prepublishOnly": "sh scripts/gen-version.sh",
+    "publish:npm": "npm run build && npm publish --access public",
+    "publish:skill": "clawhub publish skills/disclaw",
+    "publish": "npm run publish:npm && npm run publish:skill"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofan/disclaw.git"
+  },
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "discord.js": "^14.25.1",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "undici": "^6.23.0"
+  }
+}
