@@ -14,7 +14,7 @@
     "prepublishOnly": "sh scripts/gen-version.sh",
     "publish:npm": "npm run build && npm publish --access public",
     "publish:skill": "clawhub publish skills/disclaw",
-    "publish": "npm run publish:npm && npm run publish:skill"
+    "publish:all": "npm run publish:npm && npm run publish:skill"
   },
   "repository": {
     "type": "git",
