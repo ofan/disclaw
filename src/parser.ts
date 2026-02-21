@@ -15,6 +15,8 @@ const ChannelSchema = z.object({
   name: z.string(),
   topic: z.string().optional(),
   restricted: z.boolean().optional(),
+  private: z.boolean().optional(),
+  addBot: z.boolean().optional(),
   threads: z.array(z.string()).optional(),
 });
 
@@ -93,6 +95,9 @@ function validateDesiredState(state: DesiredState): string[] {
             seenThreads.add(t);
           }
         }
+        if (ch.addBot && !ch.private) {
+          warnings.push(`Channel "${ch.name}" has addBot without private (bot already has access to public channels)`);
+        }
       }
     } else {
       if (!entry.name.trim()) {
@@ -113,6 +118,9 @@ function validateDesiredState(state: DesiredState): string[] {
           }
           seenThreads.add(t);
         }
+      }
+      if (entry.addBot && !entry.private) {
+        warnings.push(`Channel "${entry.name}" has addBot without private (bot already has access to public channels)`);
       }
     }
   }
@@ -181,6 +189,8 @@ export function flattenDesiredState(state: DesiredState): FlatDesiredState {
           name: ch.name,
           topic: ch.topic,
           restricted: ch.restricted,
+          private: ch.private,
+          addBot: ch.addBot,
           categoryName: entry.category,
         });
         if (ch.threads) {
@@ -190,7 +200,7 @@ export function flattenDesiredState(state: DesiredState): FlatDesiredState {
         }
       }
     } else {
-      channels.push({ name: entry.name, topic: entry.topic, restricted: entry.restricted });
+      channels.push({ name: entry.name, topic: entry.topic, restricted: entry.restricted, private: entry.private, addBot: entry.addBot });
       if (entry.threads) {
         for (const t of entry.threads) {
           threads.push({ parentChannel: entry.name, name: t });

@@ -279,6 +279,41 @@ channels:
     const result = parseConfig(yaml);
     assert.equal(result.warnings, undefined);
   });
+
+  it("parses private and addBot on channels", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+guild: "123"
+channels:
+  - name: alerts
+    private: true
+    addBot: true
+  - name: general
+`;
+    const result = parseConfig(yaml);
+    const alertsEntry = result.channels[0] as { name: string; private?: boolean; addBot?: boolean };
+    assert.equal(alertsEntry.private, true);
+    assert.equal(alertsEntry.addBot, true);
+
+    const generalEntry = result.channels[1] as { name: string; private?: boolean; addBot?: boolean };
+    assert.equal(generalEntry.private, undefined);
+    assert.equal(generalEntry.addBot, undefined);
+  });
+
+  it("warns on addBot without private", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+guild: "123"
+channels:
+  - name: general
+    addBot: true
+`;
+    const result = parseConfig(yaml);
+    assert.ok(result.warnings);
+    assert.ok(result.warnings.some((w) => w.includes("addBot") && w.includes("general")));
+  });
 });
 
 describe("flattenDesiredState", () => {
@@ -507,5 +542,33 @@ openclaw:
 
     assert.equal(flat.bindings.length, 1);
     assert.equal(flat.bindings[0].requireMention, undefined);
+  });
+
+  it("forwards private and addBot to flat channels", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+guild: "123"
+channels:
+  - name: alerts
+    private: true
+    addBot: true
+  - category: Work
+    channels:
+      - name: dev
+        private: true
+`;
+    const state = parseConfig(yaml);
+    const flat = flattenDesiredState(state);
+
+    const alerts = flat.channels.find((c) => c.name === "alerts");
+    assert.ok(alerts);
+    assert.equal(alerts.private, true);
+    assert.equal(alerts.addBot, true);
+
+    const dev = flat.channels.find((c) => c.name === "dev");
+    assert.ok(dev);
+    assert.equal(dev.private, true);
+    assert.equal(dev.addBot, undefined);
   });
 });
