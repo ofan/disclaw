@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { basename, dirname, extname, join } from "node:path";
 
 // -- Action types --
 
@@ -82,6 +82,28 @@ export interface DesiredState {
   channels: DesiredChannelEntry[];
   openclaw?: DesiredOpenClaw;
   warnings?: string[];
+}
+
+// -- Multi-server types --
+
+export interface ServerConfig {
+  guild: string;
+  channels: DesiredChannelEntry[];
+  openclaw?: DesiredOpenClaw;
+  warnings?: string[];
+}
+
+export interface ParsedConfig {
+  servers: Record<string, ServerConfig>;
+  singleServer: boolean;
+  warnings?: string[];
+}
+
+export interface MultiServerSnapshot {
+  timestamp: string;
+  configHash: string;
+  servers: Record<string, { guildId: string; discord: DiscordState }>;
+  openclaw: OpenClawState;
 }
 
 // -- Flattened helpers (extracted from nested v2 structure) --
@@ -223,6 +245,43 @@ export function resolveDirOptions(opts: { dir?: string; config?: string }): DirO
   const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "~";
   const baseDir = join(homeDir, ".config", "disclaw");
   return { baseDir, configPath: join(baseDir, "disclaw.yaml"), snapshotDir: join(baseDir, "snapshots") };
+}
+
+// -- Config / snapshot resolution (multi-server) --
+
+export function resolveConfigPath(opts: { config?: string }): string {
+  if (opts.config) return opts.config;
+  const envPath = process.env.DISCLAW_CONFIG;
+  if (envPath) return envPath;
+  return join(process.cwd(), "disclaw.yaml");
+}
+
+export interface SnapshotOptions {
+  enabled: boolean;
+  path: string;
+}
+
+export function resolveSnapshotOptions(opts: {
+  snapshot?: string;
+  noSnapshot?: boolean;
+  configPath: string;
+}): SnapshotOptions {
+  if (opts.noSnapshot) return { enabled: false, path: "" };
+  const envVal = process.env.DISCLAW_SNAPSHOT;
+  if (envVal && ["off", "false", "0"].includes(envVal.toLowerCase())) {
+    return { enabled: false, path: "" };
+  }
+  if (opts.snapshot) return { enabled: true, path: opts.snapshot };
+  if (envVal) return { enabled: true, path: envVal };
+  return { enabled: true, path: resolveSnapshotPath(opts.configPath) };
+}
+
+export function resolveSnapshotPath(configPath: string): string {
+  const dir = dirname(configPath);
+  const ext = extname(configPath);
+  const base = basename(configPath, ext);
+  const slugified = base.replace(/\./g, "-");
+  return join(dir, `${slugified}-snapshot.json`);
 }
 
 export interface GatewayOptions {
