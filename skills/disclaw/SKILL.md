@@ -29,7 +29,7 @@ disclaw --version
    { gateway: { tools: { allow: ["gateway"] } } }
    ```
    This lets disclaw read/write config via the gateway API. Without it, disclaw falls back to CLI.
-3. **Config file** — create `disclaw.yaml` (defaults to `~/.config/disclaw/disclaw.yaml`, see format below)
+3. **Config file** — create `disclaw.yaml` in your working directory (see format below)
 
 ### Verify Setup
 
@@ -41,6 +41,8 @@ disclaw diff
 ## Config File Format
 
 The config file (`disclaw.yaml`) declares the desired state of Discord workspace structure.
+
+### Single-server
 
 ```yaml
 version: 1
@@ -81,6 +83,29 @@ openclaw:
       channel: tickets
       requireMention: true
 ```
+
+### Multi-server
+
+Manage multiple Discord servers from one config file:
+
+```yaml
+version: 1
+managedBy: disclaw
+servers:
+  production:
+    guild: "111222333"
+    channels:
+      - name: general
+      - category: Engineering
+        channels:
+          - name: backend
+  staging:
+    guild: "444555666"
+    channels:
+      - name: general
+```
+
+Target a specific server: `disclaw diff -s production`
 
 ### Key rules
 
@@ -149,10 +174,12 @@ Safe for CI. Checks: schema validity, empty names, duplicate channels/threads, b
 -j, --json              # structured JSON output
 -y, --yes               # approve mutations
 -c, --config <path>     # explicit config path (optional)
---dir <dir>             # base directory for config + snapshots
+-s, --server <name>     # target a specific server (multi-server configs)
+--no-snapshot           # disable snapshot (apply/rollback)
+--snapshot <path>       # custom snapshot path (apply/rollback)
 ```
 
-Config defaults to `~/.config/disclaw/disclaw.yaml`. Override with `-c`, `--dir`, or `DISCLAW_DIR` env var.
+Config defaults to `./disclaw.yaml` (CWD). Override with `-c` or `DISCLAW_CONFIG` env var.
 
 ### Gateway options (all commands except validate)
 
@@ -233,7 +260,7 @@ Note: Discord doesn't support true renames via API — disclaw creates the new c
 ## Safety
 
 - **Dry-run by default** — all mutating commands require `--yes`
-- **Snapshot before apply** — automatic, saved to `<dir>/snapshots/`
+- **Snapshot before apply** — automatic, saved next to config file
 - **Rollback available** — `disclaw rollback -y`
 - **Managed-scope only** — disclaw only touches resources in the config
 - **Creates before deletes** — safer ordering during apply
