@@ -2,18 +2,19 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { parseConfig, flattenDesiredState } from "./parser.ts";
 import { readFileSync } from "node:fs";
+import type { DesiredState } from "./types.ts";
 import { isCategoryGroup } from "./types.ts";
 
 describe("parseConfig", () => {
   it("parses valid disclaw.yaml", () => {
     const raw = readFileSync("disclaw.example.yaml", "utf-8");
     const result = parseConfig(raw);
-    assert.equal(result.version, 1);
-    assert.equal(result.managedBy, "disclaw");
-    assert.equal(result.guild, "YOUR_GUILD_ID");
-    assert.ok(result.channels.length >= 3);
-    assert.ok(result.openclaw);
-    assert.ok(result.openclaw.agents.alerts);
+    assert.equal(result.singleServer, true);
+    assert.ok(result.servers.default);
+    assert.equal(result.servers.default.guild, "YOUR_GUILD_ID");
+    assert.ok(result.servers.default.channels.length >= 3);
+    assert.ok(result.servers.default.openclaw);
+    assert.ok(result.servers.default.openclaw.agents.alerts);
   });
 
   it("parses mixed array: standalone channels + category groups", () => {
@@ -32,15 +33,15 @@ channels:
         topic: Operations
 `;
     const result = parseConfig(yaml);
-    assert.equal(result.channels.length, 3);
+    assert.equal(result.servers.default.channels.length, 3);
 
     // First two are standalone
-    assert.ok(!isCategoryGroup(result.channels[0]));
-    assert.ok(!isCategoryGroup(result.channels[1]));
+    assert.ok(!isCategoryGroup(result.servers.default.channels[0]));
+    assert.ok(!isCategoryGroup(result.servers.default.channels[1]));
 
     // Third is a category group
-    assert.ok(isCategoryGroup(result.channels[2]));
-    const group = result.channels[2] as { category: string; channels: { name: string }[] };
+    assert.ok(isCategoryGroup(result.servers.default.channels[2]));
+    const group = result.servers.default.channels[2] as { category: string; channels: { name: string }[] };
     assert.equal(group.category, "Work");
     assert.equal(group.channels.length, 2);
   });
@@ -81,7 +82,7 @@ channels:
 
   it("rejects invalid config (missing version)", () => {
     assert.throws(() => parseConfig("managedBy: disclaw\n"), {
-      name: "ZodError",
+      message: /must have.*guild.*or.*servers/i,
     });
   });
 
@@ -160,7 +161,7 @@ channels:
 `;
     // Should NOT throw — same thread name in different channels is fine
     const result = parseConfig(yaml);
-    assert.equal(result.channels.length, 2);
+    assert.equal(result.servers.default.channels.length, 2);
   });
 
   it("rejects agent binding to channel not in config", () => {
@@ -292,11 +293,11 @@ channels:
   - name: general
 `;
     const result = parseConfig(yaml);
-    const alertsEntry = result.channels[0] as { name: string; private?: boolean; addBot?: boolean };
+    const alertsEntry = result.servers.default.channels[0] as { name: string; private?: boolean; addBot?: boolean };
     assert.equal(alertsEntry.private, true);
     assert.equal(alertsEntry.addBot, true);
 
-    const generalEntry = result.channels[1] as { name: string; private?: boolean; addBot?: boolean };
+    const generalEntry = result.servers.default.channels[1] as { name: string; private?: boolean; addBot?: boolean };
     assert.equal(generalEntry.private, undefined);
     assert.equal(generalEntry.addBot, undefined);
   });
@@ -313,6 +314,117 @@ channels:
     const result = parseConfig(yaml);
     assert.ok(result.warnings);
     assert.ok(result.warnings.some((w) => w.includes("addBot") && w.includes("general")));
+  });
+});
+
+describe("parseConfig multi-server", () => {
+  it("parses single-server form (guild:) into ParsedConfig", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+guild: "123"
+channels:
+  - name: general
+`;
+    const result = parseConfig(yaml);
+    assert.equal(result.singleServer, true);
+    assert.ok(result.servers.default);
+    assert.equal(result.servers.default.guild, "123");
+    assert.equal(result.servers.default.channels.length, 1);
+  });
+
+  it("parses multi-server form (servers:)", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+servers:
+  production:
+    guild: "111"
+    channels:
+      - name: general
+  staging:
+    guild: "222"
+    channels:
+      - name: general
+`;
+    const result = parseConfig(yaml);
+    assert.equal(result.singleServer, false);
+    assert.equal(Object.keys(result.servers).length, 2);
+    assert.equal(result.servers.production.guild, "111");
+    assert.equal(result.servers.staging.guild, "222");
+  });
+
+  it("rejects config with neither guild nor servers", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+channels:
+  - name: general
+`;
+    assert.throws(() => parseConfig(yaml), /must have.*guild.*or.*servers/i);
+  });
+
+  it("validates per-server: duplicate channel in one server throws", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+servers:
+  prod:
+    guild: "111"
+    channels:
+      - name: general
+      - name: general
+`;
+    assert.throws(() => parseConfig(yaml), /Duplicate channel/);
+  });
+
+  it("allows same channel name in different servers", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+servers:
+  prod:
+    guild: "111"
+    channels:
+      - name: general
+  staging:
+    guild: "222"
+    channels:
+      - name: general
+`;
+    const result = parseConfig(yaml);
+    assert.equal(Object.keys(result.servers).length, 2);
+  });
+
+  it("validates binding refs per-server", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+servers:
+  prod:
+    guild: "111"
+    channels:
+      - name: general
+    openclaw:
+      agents:
+        main: missing-channel
+`;
+    assert.throws(() => parseConfig(yaml), /binds to "missing-channel"/);
+  });
+
+  it("includes per-server warnings", () => {
+    const yaml = `
+version: 1
+managedBy: disclaw
+servers:
+  prod:
+    guild: "111"
+    channels:
+      - category: Empty
+        channels: []
+`;
+    const result = parseConfig(yaml);
+    assert.ok(result.warnings?.some(w => w.includes("Empty") && w.includes("prod")));
   });
 });
 
@@ -336,7 +448,9 @@ openclaw:
     main: dev
     siren: general
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.deepEqual(flat.categories, ["Work"]);
@@ -368,7 +482,9 @@ openclaw:
     main: [general, dev, ops]
     siren: general
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.equal(flat.bindings.length, 4);
@@ -386,7 +502,9 @@ guild: "123"
 channels:
   - name: general
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.deepEqual(flat.categories, []);
@@ -411,7 +529,9 @@ openclaw:
       requireMention: false
     siren: general
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.equal(flat.bindings.length, 2);
@@ -440,7 +560,9 @@ openclaw:
       channel: [homelab, general]
       requireMention: false
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.equal(flat.bindings.length, 2);
@@ -460,7 +582,9 @@ openclaw:
   agents:
     main: general
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.equal(flat.bindings.length, 1);
@@ -485,7 +609,9 @@ openclaw:
       - channel: frontend
         requireMention: false
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.equal(flat.bindings.length, 3);
@@ -516,7 +642,9 @@ openclaw:
       - channel: backend
         requireMention: false
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.equal(flat.bindings.length, 2);
@@ -537,7 +665,9 @@ openclaw:
   agents:
     main: general
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     assert.equal(flat.bindings.length, 1);
@@ -558,7 +688,9 @@ channels:
       - name: dev
         private: true
 `;
-    const state = parseConfig(yaml);
+    const config = parseConfig(yaml);
+    const server = config.servers.default;
+    const state: DesiredState = { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
     const flat = flattenDesiredState(state);
 
     const alerts = flat.channels.find((c) => c.name === "alerts");

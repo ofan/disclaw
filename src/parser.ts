@@ -6,6 +6,8 @@ import type {
   FlatDesiredChannel,
   FlatDesiredState,
   FlatDesiredThread,
+  ParsedConfig,
+  ServerConfig,
 } from "./types.ts";
 import { isCategoryGroup, isAgentBindingObject } from "./types.ts";
 
@@ -54,6 +56,18 @@ const DesiredStateSchema = z.object({
   guild: z.string(),
   channels: z.array(ChannelEntrySchema),
   openclaw: OpenClawSchema.optional(),
+});
+
+const ServerConfigSchema = z.object({
+  guild: z.string(),
+  channels: z.array(ChannelEntrySchema),
+  openclaw: OpenClawSchema.optional(),
+});
+
+const MultiServerConfigSchema = z.object({
+  version: z.literal(1),
+  managedBy: z.literal("disclaw"),
+  servers: z.record(z.string(), ServerConfigSchema),
 });
 
 // -- Validation --
@@ -165,14 +179,37 @@ function validateDesiredState(state: DesiredState): string[] {
 
 // -- Public API --
 
-export function parseConfig(raw: string): DesiredState {
+export function parseConfig(raw: string): ParsedConfig {
   const parsed = parseYaml(raw);
-  const state = DesiredStateSchema.parse(parsed) as DesiredState;
-  const warnings = validateDesiredState(state);
-  if (warnings.length > 0) {
-    state.warnings = warnings;
+
+  if (parsed && typeof parsed === "object" && "servers" in parsed) {
+    const config = MultiServerConfigSchema.parse(parsed);
+    const allWarnings: string[] = [];
+    const servers: Record<string, ServerConfig> = {};
+    for (const [name, server] of Object.entries(config.servers)) {
+      const state: DesiredState = {
+        version: 1, managedBy: "disclaw",
+        guild: server.guild, channels: server.channels, openclaw: server.openclaw,
+      };
+      const warnings = validateDesiredState(state);
+      servers[name] = { guild: server.guild, channels: server.channels, openclaw: server.openclaw, warnings: warnings.length > 0 ? warnings : undefined };
+      for (const w of warnings) allWarnings.push(`${name}: ${w}`);
+    }
+    return { servers, singleServer: false, warnings: allWarnings.length > 0 ? allWarnings : undefined };
   }
-  return state;
+
+  if (parsed && typeof parsed === "object" && "guild" in parsed) {
+    const state = DesiredStateSchema.parse(parsed) as DesiredState;
+    const warnings = validateDesiredState(state);
+    if (warnings.length > 0) state.warnings = warnings;
+    const server: ServerConfig = {
+      guild: state.guild, channels: state.channels, openclaw: state.openclaw,
+      warnings: state.warnings,
+    };
+    return { servers: { default: server }, singleServer: true, warnings: state.warnings };
+  }
+
+  throw new Error("Config must have either 'guild' (single-server) or 'servers' (multi-server) key");
 }
 
 export function flattenDesiredState(state: DesiredState): FlatDesiredState {

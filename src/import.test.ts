@@ -5,6 +5,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parseDocument } from "yaml";
 import { parseConfig, flattenDesiredState } from "./parser.ts";
+import type { DesiredState } from "./types.ts";
+
+function toDesiredState(config: ReturnType<typeof parseConfig>): DesiredState {
+  const server = config.servers.default;
+  return { version: 1, managedBy: "disclaw", guild: server.guild, channels: server.channels, openclaw: server.openclaw };
+}
 
 describe("import YAML manipulation", () => {
   const baseYaml = `version: 1
@@ -29,7 +35,7 @@ channels:
 
     const output = doc.toString();
     const parsed = parseConfig(output);
-    const flat = flattenDesiredState(parsed);
+    const flat = flattenDesiredState(toDesiredState(parsed));
     assert.equal(flat.channels.length, 3);
     assert.ok(flat.channels.some((c) => c.name === "new-channel" && c.topic === "Imported"));
   });
@@ -44,7 +50,7 @@ channels:
 
     const output = doc.toString();
     const parsed = parseConfig(output);
-    const flat = flattenDesiredState(parsed);
+    const flat = flattenDesiredState(toDesiredState(parsed));
     assert.ok(flat.threads.some((t) => t.parentChannel === "homelab" && t.name === "Docker"));
   });
 
@@ -55,7 +61,7 @@ channels:
 
     const output = doc.toString();
     const parsed = parseConfig(output);
-    const flat = flattenDesiredState(parsed);
+    const flat = flattenDesiredState(toDesiredState(parsed));
     assert.ok(flat.channels.some((c) => c.name === "no-topic" && c.topic === undefined));
   });
 
@@ -72,7 +78,7 @@ channels:
 
     const updated = readFileSync(configPath, "utf-8");
     const parsed = parseConfig(updated);
-    const flat = flattenDesiredState(parsed);
+    const flat = flattenDesiredState(toDesiredState(parsed));
     assert.equal(flat.channels.length, 3);
     assert.ok(flat.channels.some((c) => c.name === "imported"));
   });
