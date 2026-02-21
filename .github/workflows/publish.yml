@@ -17,6 +17,13 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+      - name: Sync package.json version from git tag
+        env:
+          TAG_REF: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG_REF#v}"
+          echo "Publishing version: $VERSION"
+          npm version "$VERSION" --no-git-tag-version
       - run: npm install
       - run: npm test
       - run: npm run build
