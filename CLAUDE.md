@@ -10,12 +10,13 @@ Discord workspace structure + OpenClaw routing managed as code.
 - `npm run disclaw -- rollback --yes` — restore snapshot
 - `npm run disclaw -- import --yes` — adopt unmanaged Discord resources
 
-Config defaults to `~/.config/disclaw/disclaw.yaml`. Override with `-c <path>`, `--dir <dir>`, or `DISCLAW_DIR` env var.
+Config defaults to `./disclaw.yaml` (CWD). Override with `-c <path>` or `DISCLAW_CONFIG` env var.
 
 All commands (except validate) support:
 - `-f, --filters <types>` — comma-separated resource types: category, channel, thread, binding
 - `-j, --json` — structured output for agent/LLM integration
 - `-y, --yes` — approve mutations (required for apply/import/rollback)
+- `-s, --server <name>` — target a specific server (multi-server configs)
 
 ## Build / Test
 - `npm run build` — compile TypeScript
@@ -29,14 +30,22 @@ All commands (except validate) support:
   - `OpenClawCLIProvider` — uses `execFileSync`, fallback path
   - `resolveOpenClawProvider()` — factory that probes API then falls back to CLI
 - All OpenClaw interaction isolated in `src/providers/openclaw.ts`
-- Reconciler diffs desired vs actual → deterministic action list
-- Snapshots saved to `<dir>/snapshots/` before any mutation (default: `~/.config/disclaw/snapshots/`)
+- Reconciler diffs desired vs actual → deterministic action list; scoping guard skips bindings for channels outside current guild
+- Multi-server: per-server `DiscordProvider`, shared `OpenClawProvider`, `ParsedConfig` normalizes both formats
+- Single-file snapshots: `<config-basename>-snapshot.json` next to config file, combined `MultiServerSnapshot` format
 
-## Config Directory
-- `--dir <dir>` — base directory for config + snapshots (default: `~/.config/disclaw/`)
-- `-c, --config <path>` — explicit config file path (optional, defaults to `<dir>/disclaw.yaml`)
-- `DISCLAW_DIR` env var — same as `--dir`
-- Resolution: `-c` flag > `--dir`/`DISCLAW_DIR` > `~/.config/disclaw/`
+## Config Resolution
+- `-c, --config <path>` — explicit config file path
+- `DISCLAW_CONFIG` env var — config file path
+- Default: `./disclaw.yaml` (CWD)
+- Resolution: `-c` flag > `DISCLAW_CONFIG` env var > `./disclaw.yaml`
+
+## Snapshot Options
+- Snapshots auto-saved before apply/rollback as `<config-basename>-snapshot.json`
+- `--no-snapshot` — disable snapshot (apply/rollback only)
+- `--snapshot <path>` — custom snapshot file path (apply/rollback only)
+- `DISCLAW_SNAPSHOT` env var — path or `off`/`false`/`0` to disable
+- Resolution: `--no-snapshot` > `--snapshot` flag > `DISCLAW_SNAPSHOT` env var > auto-derived path
 
 ## Gateway Options
 - `--gateway-url <url>` — override gateway URL (default: `http://127.0.0.1:18789`)
@@ -69,6 +78,9 @@ All commands (except validate) support:
 
 ## Schema
 - v1 schema: nested categories, inline threads, `openclaw.agents` map
+- Two config formats (both v1): single-server (`guild:` key) and multi-server (`servers:` map)
+- `parseConfig()` returns `ParsedConfig { servers: Record<string, ServerConfig>, singleServer: boolean }`
+- Single-server configs normalized to `servers.default`
 - `restricted: true` on channels maps to Discord's `nsfw` flag
 - `private: true` on channels denies @everyone ViewChannel (permission overwrite)
 - `addBot: true` grants the bot ViewChannel + SendMessages on private channels

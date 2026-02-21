@@ -6,7 +6,7 @@ import { reconcile } from "./reconciler.ts";
 import { DiscordProvider } from "./providers/discord.ts";
 import { OpenClawCLIProvider, probeOpenClawCLI } from "./providers/openclaw.ts";
 import { formatActions } from "./format.ts";
-import type { OpenClawState } from "./types.ts";
+import type { DesiredState, OpenClawState } from "./types.ts";
 
 describe("integration: plan against real state", () => {
   const configPath = "disclaw.yaml";
@@ -18,10 +18,11 @@ describe("integration: plan against real state", () => {
       return;
     }
     const raw = readFileSync(configPath, "utf-8");
-    const desired = parseConfig(raw);
+    const config = parseConfig(raw);
+    const server = config.servers[Object.keys(config.servers)[0]];
     discordProvider = new DiscordProvider(
       process.env.DISCORD_BOT_TOKEN,
-      desired.guild,
+      server.guild,
     );
     await discordProvider.login();
   });
@@ -34,7 +35,12 @@ describe("integration: plan against real state", () => {
     if (!process.env.DISCORD_BOT_TOKEN) return;
 
     const raw = readFileSync(configPath, "utf-8");
-    const desired = parseConfig(raw);
+    const config = parseConfig(raw);
+    const server = config.servers[Object.keys(config.servers)[0]];
+    const desired: DesiredState = {
+      version: 1, managedBy: "disclaw",
+      guild: server.guild, channels: server.channels, openclaw: server.openclaw,
+    };
     const discordState = await discordProvider.fetch();
 
     let openclawState: OpenClawState = { bindings: [] };

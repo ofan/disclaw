@@ -6,11 +6,12 @@
 
 **Discord workspace structure + OpenClaw routing, managed as code.**
 
-Declare your Discord server layout in a single YAML file — categories, channels, threads, private channels, agent bindings — and let disclaw diff, apply, and roll back changes with the safety of a real infrastructure tool.
+Declare your Discord server layout in a single YAML file — categories, channels, threads, private channels, agent bindings — and let disclaw diff, apply, and roll back changes with the safety of a real infrastructure tool. Manage one server or many from one config.
 
 ### Why disclaw
 
 - **Declarative config** — YAML in, Discord out. Like Terraform, but for Discord servers.
+- **Multi-server** — manage multiple Discord servers from one config file with `servers:` map.
 - **Full workspace coverage** — categories, text channels, threads, private channels, age-restricted channels, and pinned messages (read-only).
 - **OpenClaw native** — agent-to-channel bindings and routing gates managed alongside structure. Also available as a [ClawHub skill](https://clawhub.com/skills/disclaw) for direct install.
 - **Strong verification** — Zod-validated API responses, config validation before any API call, schema checks safe for CI (`disclaw validate`).
@@ -41,6 +42,24 @@ disclaw apply -y                 # push config → Discord
 disclaw import -y                # pull Discord → config
 disclaw rollback -y              # restore from snapshot
 ```
+
+### Multi-server
+
+```yaml
+version: 1
+managedBy: disclaw
+servers:
+  production:
+    guild: "111222333"
+    channels:
+      - name: general
+  staging:
+    guild: "444555666"
+    channels:
+      - name: general
+```
+
+Target a specific server: `disclaw diff -s production`
 
 ### Filtering
 
