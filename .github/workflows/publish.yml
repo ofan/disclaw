@@ -9,10 +9,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -28,3 +30,29 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm publish --provenance --access public
+      - name: Generate release notes
+        id: notes
+        env:
+          TAG_REF: ${{ github.ref_name }}
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating notes from $PREV_TAG to $TAG_REF"
+            NOTES=$(git log --pretty=format:"- %s" "$PREV_TAG".."$TAG_REF" -- ':!package.json' ':!package-lock.json' | grep -v "^- chore:" || true)
+          else
+            NOTES=$(git log --pretty=format:"- %s" "$TAG_REF" | head -20)
+          fi
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_REF: ${{ github.ref_name }}
+          NOTES: ${{ steps.notes.outputs.notes }}
+        run: |
+          gh release create "$TAG_REF" \
+            --title "$TAG_REF" \
+            --notes "$NOTES"
