@@ -149,6 +149,8 @@ export async function importCommand(
         const entry: Record<string, unknown> = { name: ch.name };
         if (ch.topic) entry.topic = ch.topic;
         if (ch.restricted) entry.restricted = true;
+        if (ch.private) entry.private = true;
+        if (ch.addBot) entry.addBot = true;
         return entry;
       });
 
@@ -165,6 +167,8 @@ export async function importCommand(
         // Check if the source channel is restricted
         const srcCh = guildState.channels.find((ch) => ch.id === r.id);
         if (srcCh?.restricted) entry.restricted = true;
+        if (srcCh?.private) entry.private = true;
+        if (srcCh?.addBot) entry.addBot = true;
         channels.add(doc.createNode(entry));
         importedCount++;
       } else if (r.resourceType === "thread") {
