@@ -2,6 +2,8 @@ import {
   Client,
   GatewayIntentBits,
   ChannelType,
+  PermissionFlagsBits,
+  OverwriteType,
   type Guild,
   type CategoryChannel,
   type TextChannel,
@@ -85,12 +87,30 @@ export class DiscordProvider implements StateProvider<DiscordState> {
     for (const [, ch] of allChannels) {
       if (ch && ch.type === ChannelType.GuildText) {
         const textCh = ch as TextChannel;
+
+        // Detect private: @everyone denied ViewChannel
+        const everyoneOverwrite = textCh.permissionOverwrites.cache.find(
+          (ow) => ow.id === textCh.guild.id && ow.type === OverwriteType.Role,
+        );
+        const isPrivate = everyoneOverwrite?.deny.has(PermissionFlagsBits.ViewChannel) || false;
+
+        // Detect addBot: bot user allowed ViewChannel
+        const botUserId = this.client.user?.id;
+        const botOverwrite = botUserId
+          ? textCh.permissionOverwrites.cache.find(
+              (ow) => ow.id === botUserId && ow.type === OverwriteType.Member,
+            )
+          : undefined;
+        const hasAddBot = botOverwrite?.allow.has(PermissionFlagsBits.ViewChannel) || false;
+
         textChannels.push({
           id: textCh.id,
           name: textCh.name,
           type: "text",
           topic: textCh.topic ?? undefined,
           restricted: textCh.nsfw || undefined,
+          private: isPrivate || undefined,
+          addBot: hasAddBot || undefined,
           categoryId: textCh.parentId ?? undefined,
         });
 
