@@ -34,6 +34,8 @@ export interface DesiredChannel {
   name: string;
   topic?: string;
   restricted?: boolean;
+  private?: boolean;
+  addBot?: boolean;
   threads?: string[];
 }
 
@@ -88,6 +90,8 @@ export interface FlatDesiredChannel {
   name: string;
   topic?: string;
   restricted?: boolean;
+  private?: boolean;
+  addBot?: boolean;
   categoryName?: string;
 }
 
@@ -117,6 +121,8 @@ export interface ActualChannel {
   type: "text";
   topic?: string;
   restricted?: boolean;
+  private?: boolean;
+  addBot?: boolean;
   categoryId?: string;
   managedBy?: string;
 }
