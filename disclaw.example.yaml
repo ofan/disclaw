@@ -28,6 +28,11 @@ channels:
   - name: announcements
     topic: "Important updates only."
 
+  - name: alerts
+    topic: "Alert notifications"
+    private: true
+    addBot: true
+
   # --- Category groups ---
   - category: Engineering
     channels:
