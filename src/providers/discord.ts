@@ -143,6 +143,32 @@ export class DiscordProvider implements StateProvider<DiscordState> {
     };
   }
 
+  private buildPermissionOverwrites(
+    isPrivate?: boolean,
+    addBot?: boolean,
+  ): { id: string; deny?: bigint[]; allow?: bigint[]; type: OverwriteType }[] {
+    const overwrites: { id: string; deny?: bigint[]; allow?: bigint[]; type: OverwriteType }[] = [];
+
+    if (isPrivate) {
+      const guild = this.getGuild();
+      overwrites.push({
+        id: guild.id, // @everyone role ID === guild ID
+        deny: [PermissionFlagsBits.ViewChannel],
+        type: OverwriteType.Role,
+      });
+    }
+
+    if (addBot && this.client.user) {
+      overwrites.push({
+        id: this.client.user.id,
+        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+        type: OverwriteType.Member,
+      });
+    }
+
+    return overwrites;
+  }
+
   async apply(actions: Action[]): Promise<void> {
     const guild = this.getGuild();
     const channelMap = new Map<string, string>();
@@ -188,13 +214,17 @@ export class DiscordProvider implements StateProvider<DiscordState> {
               const topic = after?.topic as string | undefined;
               const categoryName = after?.categoryName as string | undefined;
               const restricted = after?.restricted as boolean | undefined;
+              const isPrivate = after?.private as boolean | undefined;
+              const addBot = after?.addBot as boolean | undefined;
               const parentId = categoryName ? categoryMap.get(categoryName) : undefined;
+              const permissionOverwrites = this.buildPermissionOverwrites(isPrivate, addBot);
               const created = await guild.channels.create({
                 name: action.name,
                 type: ChannelType.GuildText,
                 parent: parentId,
                 topic: topic || undefined,
                 nsfw: restricted || undefined,
+                permissionOverwrites: permissionOverwrites.length > 0 ? permissionOverwrites : undefined,
               });
               channelMap.set(action.name, created.id);
             } else if (action.type === "update") {
@@ -205,13 +235,24 @@ export class DiscordProvider implements StateProvider<DiscordState> {
                 const topic = after?.topic as string | undefined;
                 const categoryName = after?.categoryName as string | undefined;
                 const restricted = after?.restricted as boolean | undefined;
+                const isPrivate = after?.private as boolean | undefined;
+                const addBot = after?.addBot as boolean | undefined;
                 const parentId = categoryName ? categoryMap.get(categoryName) : undefined;
                 const parentChanged = "categoryName" in (after ?? {});
+                const privateChanged = "private" in (after ?? {});
+                const addBotChanged = "addBot" in (after ?? {});
+
                 await ch.edit({
                   topic: topic || undefined,
                   nsfw: restricted ?? false,
                   ...(parentChanged ? { parent: parentId ?? null } : {}),
                 });
+
+                // Sync permission overwrites if private or addBot changed
+                if (privateChanged || addBotChanged) {
+                  const permissionOverwrites = this.buildPermissionOverwrites(isPrivate, addBot);
+                  await ch.permissionOverwrites.set(permissionOverwrites);
+                }
               }
             } else if (action.type === "delete") {
               const chId = (action.details?.before as Record<string, string>)?.id
