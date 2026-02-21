@@ -14,6 +14,6 @@ jobs:
         with:
           node-version: '24'
       - run: npm install
-      - run: sh scripts/gen-version.sh
+      - run: echo 'export const VERSION = "0.0.0-ci";' > src/version.ts
       - run: npm test
       - run: npx tsc --noEmit
