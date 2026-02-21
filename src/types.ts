@@ -222,31 +222,6 @@ export function parseTypeFilter(raw?: string): ResourceTypeFilter | null {
   return new Set(types);
 }
 
-export interface DirOptions {
-  baseDir: string;
-  configPath: string;
-  snapshotDir: string;
-}
-
-export function resolveDirOptions(opts: { dir?: string; config?: string }): DirOptions {
-  // Explicit -c flag — use it directly, snapshots go to sibling dir
-  if (opts.config) {
-    const baseDir = opts.dir ?? process.env.DISCLAW_DIR ?? join(opts.config, "..");
-    return { baseDir, configPath: opts.config, snapshotDir: join(baseDir, "snapshots") };
-  }
-
-  // --dir or DISCLAW_DIR
-  if (opts.dir || process.env.DISCLAW_DIR) {
-    const baseDir = (opts.dir ?? process.env.DISCLAW_DIR)!;
-    return { baseDir, configPath: join(baseDir, "disclaw.yaml"), snapshotDir: join(baseDir, "snapshots") };
-  }
-
-  // Fall back to ~/.config/disclaw/
-  const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "~";
-  const baseDir = join(homeDir, ".config", "disclaw");
-  return { baseDir, configPath: join(baseDir, "disclaw.yaml"), snapshotDir: join(baseDir, "snapshots") };
-}
-
 // -- Config / snapshot resolution (multi-server) --
 
 export function resolveConfigPath(opts: { config?: string }): string {

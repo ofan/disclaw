@@ -6,7 +6,7 @@ import { applyCommand } from "./commands/apply.ts";
 import { rollbackCommand } from "./commands/rollback.ts";
 import { importCommand } from "./commands/import.ts";
 import { validateCommand } from "./commands/validate.ts";
-import { resolveDirOptions, resolveGatewayOptions, parseTypeFilter } from "./types.ts";
+import { resolveConfigPath, resolveSnapshotOptions, resolveGatewayOptions, parseTypeFilter } from "./types.ts";
 import { VERSION } from "./version.ts";
 
 const program = new Command();
@@ -15,7 +15,6 @@ program
   .name("disclaw")
   .description("Manage Discord workspace structure and OpenClaw routing as code")
   .version(VERSION)
-  .option("--dir <dir>", "Base directory for config and snapshots (default: ~/.config/disclaw)")
   .option("--gateway-url <url>", "OpenClaw gateway URL (default: http://127.0.0.1:18789)")
   .option("--gateway-token <token>", "OpenClaw gateway auth token");
 
@@ -28,14 +27,15 @@ function addCommonFlags(cmd: Command): Command {
 const diffCmd = program
   .command("diff")
   .description("Show full diff between config and current state")
-  .option("-c, --config <path>", "Path to disclaw.yaml config file");
+  .option("-c, --config <path>", "Path to disclaw.yaml config file")
+  .option("-s, --server <name>", "Target a specific server");
 addCommonFlags(diffCmd)
   .action(async (opts) => {
-    const dirOpts = resolveDirOptions({ dir: program.opts().dir, config: opts.config });
+    const configPath = resolveConfigPath({ config: opts.config });
     const filter = parseTypeFilter(opts.filters);
-    if (!opts.json) console.log(`Config: ${dirOpts.configPath}`);
+    if (!opts.json) console.log(`Config: ${configPath}`);
     const gwOpts = resolveGatewayOptions(program.opts());
-    const code = await diffCommand(dirOpts.configPath, filter, opts.json, gwOpts);
+    const code = await diffCommand(configPath, filter, opts.json, gwOpts, opts.server);
     process.exit(code);
   });
 
@@ -43,15 +43,23 @@ const applyCmd = program
   .command("apply")
   .description("Apply desired state changes (dry-run by default)")
   .option("-c, --config <path>", "Path to disclaw.yaml config file")
+  .option("-s, --server <name>", "Target a specific server")
   .option("-y, --yes", "Actually apply changes (default is dry-run)", false)
-  .option("--prune", "Delete resources not in config (channels, categories, threads)", false);
+  .option("--prune", "Delete resources not in config (channels, categories, threads)", false)
+  .option("--no-snapshot", "Skip saving snapshot before apply")
+  .option("--snapshot <path>", "Custom snapshot file path");
 addCommonFlags(applyCmd)
   .action(async (opts) => {
-    const dirOpts = resolveDirOptions({ dir: program.opts().dir, config: opts.config });
+    const configPath = resolveConfigPath({ config: opts.config });
     const filter = parseTypeFilter(opts.filters);
-    if (!opts.json) console.log(`Config: ${dirOpts.configPath}`);
+    if (!opts.json) console.log(`Config: ${configPath}`);
     const gwOpts = resolveGatewayOptions(program.opts());
-    const code = await applyCommand(dirOpts.configPath, opts.yes, filter, opts.json, opts.prune, gwOpts, dirOpts.snapshotDir);
+    const snapOpts = resolveSnapshotOptions({
+      snapshot: typeof opts.snapshot === "string" ? opts.snapshot : undefined,
+      noSnapshot: opts.snapshot === false,
+      configPath,
+    });
+    const code = await applyCommand(configPath, opts.yes, filter, opts.json, opts.prune, gwOpts, snapOpts, opts.server);
     process.exit(code);
   });
 
@@ -59,13 +67,21 @@ const rollbackCmd = program
   .command("rollback")
   .description("Restore from most recent pre-apply snapshot")
   .option("-c, --config <path>", "Path to disclaw.yaml config file")
-  .option("-y, --yes", "Actually rollback (default is dry-run)", false);
+  .option("-s, --server <name>", "Target a specific server")
+  .option("-y, --yes", "Actually rollback (default is dry-run)", false)
+  .option("--no-snapshot", "Skip saving pre-rollback snapshot")
+  .option("--snapshot <path>", "Custom snapshot file path");
 addCommonFlags(rollbackCmd)
   .action(async (opts) => {
-    const dirOpts = resolveDirOptions({ dir: program.opts().dir, config: opts.config });
-    if (!opts.json) console.log(`Config: ${dirOpts.configPath}`);
+    const configPath = resolveConfigPath({ config: opts.config });
+    if (!opts.json) console.log(`Config: ${configPath}`);
     const gwOpts = resolveGatewayOptions(program.opts());
-    const code = await rollbackCommand(dirOpts.configPath, opts.yes, opts.json, gwOpts, dirOpts.snapshotDir);
+    const snapOpts = resolveSnapshotOptions({
+      snapshot: typeof opts.snapshot === "string" ? opts.snapshot : undefined,
+      noSnapshot: opts.snapshot === false,
+      configPath,
+    });
+    const code = await rollbackCommand(configPath, opts.yes, opts.json, gwOpts, snapOpts, opts.server);
     process.exit(code);
   });
 
@@ -73,14 +89,15 @@ const importCmd = program
   .command("import")
   .description("Import unmanaged Discord resources into config")
   .option("-c, --config <path>", "Path to disclaw.yaml config file")
+  .option("-s, --server <name>", "Target a specific server")
   .option("-y, --yes", "Actually import (default is dry-run)", false);
 addCommonFlags(importCmd)
   .action(async (opts) => {
-    const dirOpts = resolveDirOptions({ dir: program.opts().dir, config: opts.config });
+    const configPath = resolveConfigPath({ config: opts.config });
     const filter = parseTypeFilter(opts.filters);
-    if (!opts.json) console.log(`Config: ${dirOpts.configPath}`);
+    if (!opts.json) console.log(`Config: ${configPath}`);
     const gwOpts = resolveGatewayOptions(program.opts());
-    const code = await importCommand(dirOpts.configPath, opts.yes, filter, opts.json, gwOpts);
+    const code = await importCommand(configPath, opts.yes, filter, opts.json, gwOpts, opts.server);
     process.exit(code);
   });
 
@@ -91,9 +108,9 @@ program
   .option("-j, --json", "Output as JSON", false)
   .action((opts) => {
     try {
-      const dirOpts = resolveDirOptions({ dir: program.opts().dir, config: opts.config });
-      if (!opts.json) console.log(`Config: ${dirOpts.configPath}`);
-      const code = validateCommand(dirOpts.configPath, opts.json);
+      const configPath = resolveConfigPath({ config: opts.config });
+      if (!opts.json) console.log(`Config: ${configPath}`);
+      const code = validateCommand(configPath, opts.json);
       process.exit(code);
     } catch (err: unknown) {
       if (opts.json) {
