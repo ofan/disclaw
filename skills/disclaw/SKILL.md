@@ -67,6 +67,9 @@ channels:
       - name: escalations
       - name: mature-content
         restricted: true          # maps to Discord's NSFW/age-restricted flag
+      - name: alerts
+        private: true             # denies @everyone ViewChannel
+        addBot: true              # grants bot ViewChannel + SendMessages
 
 # OpenClaw agent bindings (optional)
 openclaw:
@@ -85,6 +88,8 @@ openclaw:
 - Channel names must be lowercase, no spaces (Discord enforces this)
 - Thread names can have spaces and mixed case
 - Agent bindings reference channel names from the `channels` section
+- `private: true` denies @everyone the ViewChannel permission (channel is hidden by default)
+- `addBot: true` grants the bot ViewChannel + SendMessages on private channels (use with `private: true`)
 - `requireMention` controls whether the bot needs @mention to respond in that channel
 
 ## Commands

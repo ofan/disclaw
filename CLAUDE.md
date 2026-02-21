@@ -70,6 +70,8 @@ All commands (except validate) support:
 ## Schema
 - v1 schema: nested categories, inline threads, `openclaw.agents` map
 - `restricted: true` on channels maps to Discord's `nsfw` flag
+- `private: true` on channels denies @everyone ViewChannel (permission overwrite)
+- `addBot: true` grants the bot ViewChannel + SendMessages on private channels
 - Pins are read-only (displayed in diff output, not managed as config)
 
 ## MVP Scope
