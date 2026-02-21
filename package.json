@@ -1,6 +1,6 @@
 {
   "name": "@ofan/disclaw",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "DiscordOps + OpenClaw integration — manage Discord structure as code",
   "type": "module",
   "bin": {
