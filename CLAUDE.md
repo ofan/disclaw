@@ -45,7 +45,7 @@ All commands (except validate) support:
 - `--no-snapshot` — disable snapshot (apply/rollback only)
 - `--snapshot <path>` — custom snapshot file path (apply/rollback only)
 - `DISCLAW_SNAPSHOT` env var — path or `off`/`false`/`0` to disable
-- Resolution: `--no-snapshot` > `--snapshot` flag > `DISCLAW_SNAPSHOT` env var > auto-derived path
+- Resolution: `--no-snapshot` > `--snapshot <path>` > `DISCLAW_SNAPSHOT` env var > auto-derived path
 
 ## Gateway Options
 - `--gateway-url <url>` — override gateway URL (default: `http://127.0.0.1:18789`)

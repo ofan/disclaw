@@ -200,13 +200,6 @@ export interface ReconcileResult {
   unmanaged: UnmanagedResource[];
 }
 
-export interface Snapshot {
-  timestamp: string;
-  configHash: string;
-  discord: DiscordState;
-  openclaw: OpenClawState;
-}
-
 export type ResourceTypeFilter = Set<ResourceType>;
 
 const ALL_RESOURCE_TYPES: ResourceType[] = ["category", "channel", "thread", "binding"];
@@ -242,11 +235,11 @@ export function resolveSnapshotOptions(opts: {
   configPath: string;
 }): SnapshotOptions {
   if (opts.noSnapshot) return { enabled: false, path: "" };
+  if (opts.snapshot) return { enabled: true, path: opts.snapshot };
   const envVal = process.env.DISCLAW_SNAPSHOT;
   if (envVal && ["off", "false", "0"].includes(envVal.toLowerCase())) {
     return { enabled: false, path: "" };
   }
-  if (opts.snapshot) return { enabled: true, path: opts.snapshot };
   if (envVal) return { enabled: true, path: envVal };
   return { enabled: true, path: resolveSnapshotPath(opts.configPath) };
 }

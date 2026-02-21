@@ -73,4 +73,28 @@ describe("resolveSnapshotOptions", () => {
       process.env.DISCLAW_SNAPSHOT = prev;
     }
   });
+
+  it("--snapshot flag beats DISCLAW_SNAPSHOT env var", () => {
+    const prev = process.env.DISCLAW_SNAPSHOT;
+    try {
+      process.env.DISCLAW_SNAPSHOT = "/env/snap.json";
+      const result = resolveSnapshotOptions({ snapshot: "/flag/snap.json", configPath: "/app/disclaw.yaml" });
+      assert.equal(result.enabled, true);
+      assert.equal(result.path, "/flag/snap.json");
+    } finally {
+      process.env.DISCLAW_SNAPSHOT = prev;
+    }
+  });
+
+  it("--snapshot flag overrides DISCLAW_SNAPSHOT=off", () => {
+    const prev = process.env.DISCLAW_SNAPSHOT;
+    try {
+      process.env.DISCLAW_SNAPSHOT = "off";
+      const result = resolveSnapshotOptions({ snapshot: "/explicit.json", configPath: "/app/disclaw.yaml" });
+      assert.equal(result.enabled, true);
+      assert.equal(result.path, "/explicit.json");
+    } finally {
+      process.env.DISCLAW_SNAPSHOT = prev;
+    }
+  });
 });
