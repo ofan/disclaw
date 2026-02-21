@@ -240,6 +240,10 @@ export function reconcile(
     .filter((b) => b.match.channel === "discord")
     .sort((a, b) => a.agentId.localeCompare(b.agentId))
   ) {
+    // Skip bindings for channels not in this guild's channel list
+    const isThisGuild = discord.channels.some((c) => c.id === binding.match.peer.id);
+    if (!isThisGuild) continue;
+
     const key = `${binding.agentId}:${binding.match.peer.id}`;
     if (!desiredBindingKeys.has(key)) {
       const ch = discord.channels.find((c) => c.id === binding.match.peer.id);

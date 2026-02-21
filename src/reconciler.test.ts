@@ -246,6 +246,31 @@ describe("reconcile", () => {
     assert.ok(!actions.some((a) => a.type === "delete" && a.resourceType === "channel"));
   });
 
+  it("does not flag bindings for channels outside this guild as stale", () => {
+    // Guild A has channel "homelab" (id: ch1)
+    // OpenClaw has a binding for agent "other-agent" → channel "ch99" (Guild B's channel)
+    const discordState: DiscordState = {
+      categories: [{ id: "cat1", name: "Homelab", managedBy: "disclaw" }],
+      channels: [
+        { id: "ch1", name: "homelab", type: "text", topic: "Ops", categoryId: "cat1", managedBy: "disclaw" },
+      ],
+      threads: [],
+      pins: [],
+    };
+    const openclawState: OpenClawState = {
+      bindings: [
+        // This guild's binding — expected
+        { agentId: "main", match: { channel: "discord", peer: { kind: "channel", id: "ch1" } } },
+        // Other guild's binding — must NOT be flagged as stale
+        { agentId: "other-agent", match: { channel: "discord", peer: { kind: "channel", id: "ch99" } } },
+      ],
+    };
+    const { actions } = reconcile(desired, discordState, openclawState);
+    const deletes = actions.filter((a) => a.type === "delete" && a.resourceType === "binding");
+    // "other-agent → ch99" should NOT appear as a delete
+    assert.ok(!deletes.some((a) => a.name.includes("other-agent")));
+  });
+
   it("handles top-level channels (no category)", () => {
     const topLevel: DesiredState = {
       version: 1,
