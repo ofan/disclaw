@@ -73,6 +73,8 @@ export function reconcile(
           after: {
             topic: ch.topic,
             ...(ch.restricted ? { restricted: true } : {}),
+            ...(ch.private ? { private: true } : {}),
+            ...(ch.addBot ? { addBot: true } : {}),
             ...(ch.categoryName ? { categoryName: ch.categoryName } : {}),
           },
         },
@@ -85,8 +87,10 @@ export function reconcile(
       const topicChanged = existing.topic !== ch.topic;
       const categoryChanged = (existingCat?.name ?? undefined) !== ch.categoryName;
       const restrictedChanged = !!existing.restricted !== !!ch.restricted;
+      const privateChanged = !!existing.private !== !!ch.private;
+      const addBotChanged = !!existing.addBot !== !!ch.addBot;
 
-      if (topicChanged || categoryChanged || restrictedChanged) {
+      if (topicChanged || categoryChanged || restrictedChanged || privateChanged || addBotChanged) {
         actions.push({
           type: "update",
           resourceType: "channel",
@@ -95,11 +99,15 @@ export function reconcile(
             before: {
               topic: existing.topic,
               ...(existing.restricted ? { restricted: true } : {}),
+              ...(existing.private ? { private: true } : {}),
+              ...(existing.addBot ? { addBot: true } : {}),
               ...(existingCat ? { categoryName: existingCat.name } : {}),
             },
             after: {
               topic: ch.topic,
               ...(ch.restricted ? { restricted: true } : {}),
+              ...(ch.private ? { private: true } : {}),
+              ...(ch.addBot ? { addBot: true } : {}),
               ...(ch.categoryName
                 ? { categoryName: ch.categoryName }
                 : categoryChanged

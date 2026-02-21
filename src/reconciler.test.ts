@@ -266,3 +266,86 @@ describe("reconcile", () => {
     assert.equal(channelCreates.length, 2);
   });
 });
+
+const emptyOC: OpenClawState = { bindings: [] };
+
+describe("reconcile private/addBot", () => {
+  it("creates channel with private and addBot in details", () => {
+    const desired: DesiredState = {
+      version: 1,
+      managedBy: "disclaw",
+      guild: "123",
+      channels: [{ name: "alerts", private: true, addBot: true }],
+    };
+    const discord: DiscordState = { categories: [], channels: [], threads: [], pins: [] };
+
+    const result = reconcile(desired, discord, emptyOC);
+    const action = result.actions.find((a) => a.name === "alerts");
+    assert.ok(action);
+    assert.equal(action.type, "create");
+    assert.equal((action.details?.after as any)?.private, true);
+    assert.equal((action.details?.after as any)?.addBot, true);
+  });
+
+  it("detects private change from false to true", () => {
+    const desired: DesiredState = {
+      version: 1,
+      managedBy: "disclaw",
+      guild: "123",
+      channels: [{ name: "alerts", private: true }],
+    };
+    const discord: DiscordState = {
+      categories: [],
+      channels: [{ id: "1", name: "alerts", type: "text" }],
+      threads: [],
+      pins: [],
+    };
+
+    const result = reconcile(desired, discord, emptyOC);
+    const action = result.actions.find((a) => a.name === "alerts");
+    assert.ok(action);
+    assert.equal(action.type, "update");
+    assert.equal((action.details?.after as any)?.private, true);
+  });
+
+  it("detects addBot change", () => {
+    const desired: DesiredState = {
+      version: 1,
+      managedBy: "disclaw",
+      guild: "123",
+      channels: [{ name: "alerts", private: true, addBot: true }],
+    };
+    const discord: DiscordState = {
+      categories: [],
+      channels: [{ id: "1", name: "alerts", type: "text", private: true }],
+      threads: [],
+      pins: [],
+    };
+
+    const result = reconcile(desired, discord, emptyOC);
+    const action = result.actions.find((a) => a.name === "alerts");
+    assert.ok(action);
+    assert.equal(action.type, "update");
+    assert.equal((action.details?.after as any)?.addBot, true);
+  });
+
+  it("noop when private and addBot match", () => {
+    const desired: DesiredState = {
+      version: 1,
+      managedBy: "disclaw",
+      guild: "123",
+      channels: [{ name: "alerts", private: true, addBot: true }],
+    };
+    const discord: DiscordState = {
+      categories: [],
+      channels: [{ id: "1", name: "alerts", type: "text", private: true, addBot: true }],
+      threads: [],
+      pins: [],
+    };
+
+    const result = reconcile(desired, discord, emptyOC);
+    const action = result.actions.find((a) => a.name === "alerts");
+    assert.ok(action);
+    assert.equal(action.type, "noop");
+  });
+});
