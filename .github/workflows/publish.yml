@@ -27,6 +27,7 @@ jobs:
           echo "Publishing version: $VERSION"
           npm version "$VERSION" --no-git-tag-version
       - run: npm install
+      - run: sh scripts/gen-version.sh
       - run: npm test
       - run: npm run build
       - run: npm publish --provenance --access public
