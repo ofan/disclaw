@@ -47,6 +47,15 @@ All commands (except validate) support:
 - `DISCLAW_SNAPSHOT` env var — path or `off`/`false`/`0` to disable
 - Resolution: `--no-snapshot` > `--snapshot <path>` > `DISCLAW_SNAPSHOT` env var > auto-derived path
 
+## Telemetry
+- Token: built-in default (override via `DISCLAW_TELEMETRY_TOKEN`)
+- Opt-out: `DISCLAW_TELEMETRY=0`
+- Events: `command_run` + `command_done` (lifecycle only)
+- Relay: `https://telemetry-relay.ryan-b4e.workers.dev` (CF Worker, separate repo at `~/projects/telemetry-relay`)
+- SDK: `telemetry-relay-sdk` (from `~/projects/telemetry-relay/sdk/`)
+- Override URL: `DISCLAW_TELEMETRY_URL`
+- Implementation: `src/telemetry.ts` — `withTelemetry()` wraps command actions in `cli.ts`
+
 ## Gateway Options
 - `--gateway-url <url>` — override gateway URL (default: `http://127.0.0.1:18789`)
 - `--gateway-token <token>` — override gateway auth token
