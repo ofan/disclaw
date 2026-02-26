@@ -51,7 +51,7 @@ All commands (except validate) support:
 - Token: built-in default (override via `DISCLAW_TELEMETRY_TOKEN`)
 - Opt-out: `DISCLAW_TELEMETRY=0`
 - Events: `command_run` + `command_done` (lifecycle only)
-- Relay: `https://telemetry-relay.ryan-b4e.workers.dev` (CF Worker, separate repo at `~/projects/telemetry-relay`)
+- Relay: `https://telemetry-relay.mlab42.workers.dev` (CF Worker, separate repo at `~/projects/telemetry-relay`)
 - SDK: `telemetry-relay-sdk` (from `~/projects/telemetry-relay/sdk/`)
 - Override URL: `DISCLAW_TELEMETRY_URL`
 - Implementation: `src/telemetry.ts` — `withTelemetry()` wraps command actions in `cli.ts`

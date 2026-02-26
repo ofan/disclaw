@@ -20,7 +20,7 @@ export function getMachineId(): string {
   return cachedMachineId;
 }
 
-const RELAY_URL = process.env.DISCLAW_TELEMETRY_URL ?? "https://telemetry-relay.ryan-b4e.workers.dev";
+const RELAY_URL = process.env.DISCLAW_TELEMETRY_URL ?? "https://telemetry-relay.mlab42.workers.dev";
 const DEFAULT_TOKEN_B64 = "cmxfN0h6LVFsak1VMW8zRnI5cVpqVEZ4eGdRMXROc2FlLUlmUnBXWWZYaHhXSQ==";
 
 let relay: Relay | undefined;

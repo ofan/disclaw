@@ -27,12 +27,11 @@ function addCommonFlags(cmd: Command): Command {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function run(name: string, fn: (opts: any) => Promise<number>) {
-  const wrapped = withTelemetry(name, async (opts) => {
-    const code = await fn(opts);
+  const wrapped = withTelemetry(name, fn);
+  return async (...args: unknown[]) => {
+    const code = await wrapped(args[0] as Record<string, unknown>);
     process.exit(code);
-    return code;
-  });
-  return async (...args: unknown[]) => { await wrapped(args[0] as Record<string, unknown>); };
+  };
 }
 
 const diffCmd = program
